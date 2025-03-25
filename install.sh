@@ -1037,27 +1037,26 @@ install_packages() {
 
     echo "Installing required services.."
 
-
     if [ "$PACKAGE_MANAGER" == "apt-get" ]; then
 
-	if [ -f /etc/os-release ] && grep -q "Ubuntu" /etc/os-release; then
+    if [ -f /etc/os-release ] && grep -q "Ubuntu" /etc/os-release; then
     
-    	packages=("curl" "git" "gnupg" "dbus-user-session" "systemd" "dbus" "systemd-container" "quota" "quotatool" "uidmap" "docker.io" "linux-generic" "default-mysql-client" "jc" "sqlite3" "geoip-bin")
-	else
- 	# debian has linux-image-amd64 instead of generic
-    	packages=("curl" "git" "gnupg" "dbus-user-session" "systemd" "dbus" "systemd-container" "quota" "quotatool" "uidmap" "docker.io" "linux-image-amd64" "default-mysql-client" "jc" "sqlite3" "geoip-bin")
+        packages=("curl" "git" "gnupg" "dbus-user-session" "systemd" "dbus" "systemd-container" "quota" "quotatool" "uidmap" "docker.io" "linux-generic" "default-mysql-client" "jc" "sqlite3" "geoip-bin")
+    else
+     # debian has linux-image-amd64 instead of generic
+        packages=("curl" "git" "gnupg" "dbus-user-session" "systemd" "dbus" "systemd-container" "quota" "quotatool" "uidmap" "docker.io" "linux-image-amd64" "default-mysql-client" "jc" "sqlite3" "geoip-bin")
 
-  	fi
+      fi
 
- 	# https://www.faqforge.com/linux/fixed-ubuntu-apt-get-upgrade-auto-restart-services/
-    	debug_log sed -i 's/#$nrconf{restart} = '"'"'i'"'"';/$nrconf{restart} = '"'"'a'"'"';/g' /etc/needrestart/needrestart.conf
+     # https://www.faqforge.com/linux/fixed-ubuntu-apt-get-upgrade-auto-restart-services/
+        debug_log sed -i 's/#$nrconf{restart} = '"'"'i'"'"';/$nrconf{restart} = '"'"'a'"'"';/g' /etc/needrestart/needrestart.conf
         
-	debug_log $PACKAGE_MANAGER -qq install apt-transport-https ca-certificates -y
-	
-	# configure apt to retry downloading on error
-	if [ ! -f /etc/apt/apt.conf.d/80-retries ]; then
-		echo "APT::Acquire::Retries \"3\";" > /etc/apt/apt.conf.d/80-retries
-	fi
+    debug_log $PACKAGE_MANAGER -qq install apt-transport-https ca-certificates -y
+    
+    # configure apt to retry downloading on error
+    if [ ! -f /etc/apt/apt.conf.d/80-retries ]; then
+        echo "APT::Acquire::Retries \"3\";" > /etc/apt/apt.conf.d/80-retries
+    fi
  
         echo "Updating certificates.."
         debug_log update-ca-certificates
@@ -1085,35 +1084,38 @@ install_packages() {
             fi
         done
 
+        # Add Docker CE, Docker CE CLI, containerd.io, Docker Buildx plugin, and Docker Compose plugin
+        echo "Installing Docker CE and related packages.."
+        debug_log $PACKAGE_MANAGER install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
 
     elif [ "$PACKAGE_MANAGER" == "yum" ]; then
     
-	# otherwise we get podman..
-	dnf config-manager --add-repo=https://download.docker.com/linux/centos/docker-ce.repo
+    # otherwise we get podman..
+    dnf config-manager --add-repo=https://download.docker.com/linux/centos/docker-ce.repo
  
-   	 packages=("wget" "git" "gnupg" "dbus-user-session" "systemd" "dbus" "systemd-container" "quota" "quotatool" "uidmap"  "docker-ce" "mysql" "pip" "jc" "sqlite" "geoip" "perl-Math-BigInt") #sqlite for almalinux and perl-Math-BigInt is needed for csf
+        packages=("wget" "git" "gnupg" "dbus-user-session" "systemd" "dbus" "systemd-container" "quota" "quotatool" "uidmap"  "docker-ce" "mysql" "pip" "jc" "sqlite" "geoip" "perl-Math-BigInt") #sqlite for almalinux and perl-Math-BigInt is needed for csf
  
- 	for package in "${packages[@]}"; do
+     for package in "${packages[@]}"; do
             echo -e "Installing        ${GREEN}$package${RESET}"
             debug_log $PACKAGE_MANAGER install "$package" -y
         done     
-	
+    
     elif [ "$PACKAGE_MANAGER" == "dnf" ]; then
-	# otherwise we get podman..
-	dnf config-manager --add-repo=https://download.docker.com/linux/centos/docker-ce.repo
+    # otherwise we get podman..
+    dnf config-manager --add-repo=https://download.docker.com/linux/centos/docker-ce.repo
 
- 	# special case for fedora, 
-	if [ -f /etc/fedora-release ]; then
-    		packages=("git" "wget" "gnupg" "dbus-user-session" "systemd" "dbus" "systemd-container" "quota" "quotatool" "uidmap" "docker" "docker-compose" "mysql" "docker-compose-plugin" "sqlite" "sqlite-devel" "perl-Math-BigInt")
-    	else
-     		packages=("git" "wget" "gnupg" "dbus-user-session" "systemd" "dbus" "systemd-container" "quota" "quotatool" "uidmap" "docker-ce" "docker-compose" "docker-ce-cli" "mysql" "containerd.io" "docker-compose-plugin" "sqlite" "sqlite-devel" "geoip" "perl-Math-BigInt")
-      	fi
-     	
-	debug_log dnf install yum-utils  -y
+     # special case for fedora, 
+    if [ -f /etc/fedora-release ]; then
+            packages=("git" "wget" "gnupg" "dbus-user-session" "systemd" "dbus" "systemd-container" "quota" "quotatool" "uidmap" "docker" "docker-compose" "mysql" "docker-compose-plugin" "sqlite" "sqlite-devel" "perl-Math-BigInt")
+        else
+             packages=("git" "wget" "gnupg" "dbus-user-session" "systemd" "dbus" "systemd-container" "quota" "quotatool" "uidmap" "docker-ce" "docker-compose" "docker-ce-cli" "mysql" "containerd.io" "docker-compose-plugin" "sqlite" "sqlite-devel" "geoip" "perl-Math-BigInt")
+          fi
+         
+    debug_log dnf install yum-utils  -y
         debug_log yum-config-manager --add-repo https://download.docker.com/linux/centos/docker-ce.repo -y  # need confirm on alma, rocky and centos
-	
- 	# needed for csf
-	debug_log dnf --allowerasing install perl -y
+    
+     # needed for csf
+    debug_log dnf --allowerasing install perl -y
 
         #  needed for ufw and gunicorn
         debug_log dnf install epel-release -y
@@ -1124,9 +1126,9 @@ install_packages() {
         for package in "${packages[@]}"; do
             echo -e "Installing  ${GREEN}$package${RESET}"
             debug_log $PACKAGE_MANAGER install "$package" -y
-	    debug_log $PACKAGE_MANAGER -y install "$package"
+        debug_log $PACKAGE_MANAGER -y install "$package"
         done 
-	
+    
     fi
 }
 
